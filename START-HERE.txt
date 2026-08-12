@@ -1,0 +1,47 @@
+START HERE — CyberPanel (savewiseguide.lat)
+
+Your old upload had EMPTY index.html (0 KB) = blank page.
+Use this package instead (index.html is complete + dist is built).
+
+========================================
+DO THIS IN CYBERPANEL (simple)
+========================================
+
+1) File Manager → open:
+   /home/savewiseguide.lat/public_html
+
+2) DELETE everything inside public_html
+   (old empty/broken files)
+
+3) Upload:
+   crypto-card-cyberpanel.zip
+   Then Extract it inside public_html
+
+4) CyberPanel left menu → NodeJS → Create NodeJS App
+   - Domain: savewiseguide.lat
+   - Application root: /home/savewiseguide.lat/public_html
+   - Application startup file: dist/server.cjs
+   - NodeJS version: 18 or 20
+   - Application mode: Production
+   - Application URL: /
+
+5) Click:
+   - NPM INSTALL
+   - then START / RESTART APP
+
+6) Open:
+   https://savewiseguide.lat
+
+Admin login:
+   ID: admin
+   Password: SuperAdmin@2026
+
+========================================
+IF STILL BLANK
+========================================
+In Website → Manage → Rewrite Rules add:
+
+RewriteEngine On
+RewriteRule ^(.*)$ http://127.0.0.1:3000/$1 [P,L]
+
+Then restart website / LiteSpeed.

@@ -1,0 +1,10 @@
+!.env.example
+*.log
+.DS_Store
+.env*
+.tools/
+assets/
+build/
+coverage/
+dist/
+node_modules/
