@@ -12,11 +12,17 @@ import {
   ArrowLeft,
   Shield,
 } from 'lucide-react';
+import { EMAIL_VALIDATION_ERROR, isValidEmailAddress } from '../utils/emailValidation';
 
 interface AuthScreenProps {
   onLoginSuccess: (user: AuthUser, userAccount?: ConnectedUser) => void;
   onBack?: () => void;
 }
+
+const isAllowedAdminLoginId = (value: string) => {
+  const id = value.trim().toLowerCase();
+  return id === 'admin' || id === 'admin@cryptocard.com' || id === 'admin@system.com';
+};
 
 export function AuthScreen({ onLoginSuccess, onBack }: AuthScreenProps) {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
@@ -34,6 +40,12 @@ export function AuthScreen({ onLoginSuccess, onBack }: AuthScreenProps) {
 
     if (!email || !password) {
       setError('Please enter both email address and password.');
+      return;
+    }
+
+    const allowAdminAlias = mode === 'login' && isAllowedAdminLoginId(email);
+    if (!allowAdminAlias && !isValidEmailAddress(email)) {
+      setError(EMAIL_VALIDATION_ERROR);
       return;
     }
 
@@ -245,11 +257,15 @@ export function AuthScreen({ onLoginSuccess, onBack }: AuthScreenProps) {
                     <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
+                      inputMode="email"
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      spellCheck={false}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@email.com"
+                      placeholder="you@gmail.com"
                       className="auth-input w-full rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder:text-slate-600 focus:outline-none transition-all"
-                      autoComplete="username"
+                      autoComplete="email"
                     />
                   </div>
                 </div>

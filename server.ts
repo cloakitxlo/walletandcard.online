@@ -4,6 +4,7 @@ import { createServer as createViteServer } from 'vite';
 import { ConnectedUser, AdminActionLog, SupportTicket } from './src/types.js';
 import { getTRC20AddressForUser } from './src/utils/addressUtils.js';
 import { generateUserCard } from './src/utils/cardUtils.js';
+import { EMAIL_VALIDATION_ERROR, isValidEmailAddress } from './src/utils/emailValidation.js';
 import {
   INITIAL_CARD,
   INITIAL_ASSETS,
@@ -494,6 +495,11 @@ async function startServer() {
 
     const cleanEmail = email.trim().toLowerCase();
 
+    if (!isSuperAdminLogin(cleanEmail) && !isValidEmailAddress(cleanEmail)) {
+      res.status(400).json({ success: false, error: EMAIL_VALIDATION_ERROR });
+      return;
+    }
+
     if (isSuperAdminLogin(cleanEmail)) {
       if (password !== SUPER_ADMIN.password) {
         res.status(401).json({ success: false, error: 'Incorrect email or password.' });
@@ -648,6 +654,11 @@ async function startServer() {
     }
 
     const cleanEmail = email.trim().toLowerCase();
+
+    if (!isValidEmailAddress(cleanEmail)) {
+      res.status(400).json({ success: false, error: EMAIL_VALIDATION_ERROR });
+      return;
+    }
 
     if (isSuperAdminLogin(cleanEmail)) {
       res.status(403).json({ success: false, error: 'This login ID is reserved for Super Admin.' });
