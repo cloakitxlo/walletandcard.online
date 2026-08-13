@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { CryptoAsset } from '../types';
-import { Send, ArrowDownLeft, Copy, Check, AlertCircle, RefreshCw, ShieldCheck, Camera, Sparkles } from 'lucide-react';
+import { Send, ArrowDownLeft, Copy, Check, AlertCircle, RefreshCw, ShieldCheck, Camera, Sparkles, HelpCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { QRScannerModal } from './QRScannerModal';
 import { SecurityAuthModal } from './SecurityAuthModal';
 
@@ -53,6 +53,7 @@ export const SendReceiveModal: React.FC<SendReceiveModalProps> = ({
   const [isReceiving, setIsReceiving] = useState<boolean>(false);
   const [receiveSuccess, setReceiveSuccess] = useState<boolean>(false);
   const [receiveErrorMsg, setReceiveErrorMsg] = useState<string | null>(null);
+  const [showHashHelp, setShowHashHelp] = useState<boolean>(false);
 
   // Camera QR Scanner Modal Overlay State
   const [showScanner, setShowScanner] = useState<boolean>(false);
@@ -469,31 +470,83 @@ export const SendReceiveModal: React.FC<SendReceiveModalProps> = ({
 
             {/* Blockchain TxHash Input Field */}
             <div className="text-left space-y-1.5 pt-1">
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center gap-2 flex-wrap">
                 <label className="text-xs font-extrabold text-slate-300 uppercase tracking-wider block">
                   Blockchain TxHash <span className="text-rose-400 font-bold">*REQUIRED</span>
                 </label>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      const text = (await navigator.clipboard.readText()).trim();
-                      if (!text) {
-                        setReceiveErrorMsg('Clipboard is empty. Copy your TxHash first, then click Paste Hash.');
-                        return;
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowHashHelp((v) => !v)}
+                    className="text-[10px] text-amber-300 hover:text-amber-200 font-bold flex items-center gap-1"
+                  >
+                    <HelpCircle className="w-3.5 h-3.5" />
+                    <span>Where to find hash?</span>
+                    {showHashHelp ? (
+                      <ChevronUp className="w-3 h-3" />
+                    ) : (
+                      <ChevronDown className="w-3 h-3" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const text = (await navigator.clipboard.readText()).trim();
+                        if (!text) {
+                          setReceiveErrorMsg('Clipboard is empty. Copy your TxHash first, then click Paste Hash.');
+                          return;
+                        }
+                        setCustomTxHash(text);
+                        setReceiveErrorMsg(null);
+                      } catch {
+                        setReceiveErrorMsg('Could not read clipboard. Please paste your TxHash manually into the field.');
                       }
-                      setCustomTxHash(text);
-                      setReceiveErrorMsg(null);
-                    } catch {
-                      setReceiveErrorMsg('Could not read clipboard. Please paste your TxHash manually into the field.');
-                    }
-                  }}
-                  className="text-[10px] text-blue-400 hover:text-blue-300 font-mono font-bold underline flex items-center gap-1"
-                >
-                  <Sparkles className="w-3 h-3 text-amber-400" />
-                  <span>Paste Hash</span>
-                </button>
+                    }}
+                    className="text-[10px] text-blue-400 hover:text-blue-300 font-mono font-bold underline flex items-center gap-1"
+                  >
+                    <Sparkles className="w-3 h-3 text-amber-400" />
+                    <span>Paste Hash</span>
+                  </button>
+                </div>
               </div>
+
+              {showHashHelp && (
+                <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-3.5 space-y-2.5 text-left">
+                  <p className="text-[11px] font-extrabold text-amber-200 uppercase tracking-wider">
+                    How to find your transaction hash (TxHash)
+                  </p>
+                  <ol className="list-decimal pl-4 space-y-1.5 text-[11px] text-slate-300 leading-relaxed">
+                    <li>
+                      After you send USDT to the deposit address, open the <span className="text-white font-bold">same wallet / exchange</span> you used to send.
+                    </li>
+                    <li>
+                      Go to <span className="text-white font-bold">History</span>, <span className="text-white font-bold">Activity</span>, or <span className="text-white font-bold">Transactions</span>.
+                    </li>
+                    <li>
+                      Tap the transfer you just made (to this vault address).
+                    </li>
+                    <li>
+                      Look for <span className="text-white font-bold">TxHash</span>, <span className="text-white font-bold">Transaction ID</span>, <span className="text-white font-bold">Hash</span>, or <span className="text-white font-bold">TxID</span>.
+                    </li>
+                    <li>
+                      Tap <span className="text-white font-bold">Copy</span>, then come back here and click <span className="text-blue-300 font-bold">Paste Hash</span>.
+                    </li>
+                  </ol>
+                  <div className="pt-1 border-t border-white/10 space-y-1">
+                    <p className="text-[10px] text-slate-400 leading-relaxed">
+                      <span className="text-slate-200 font-bold">Trust Wallet / MetaMask:</span> Wallet → History / Activity → open the send → Copy transaction hash.
+                    </p>
+                    <p className="text-[10px] text-slate-400 leading-relaxed">
+                      <span className="text-slate-200 font-bold">Exchange (Binance, etc.):</span> Wallet → Withdrawal history → open the withdrawal → copy TxID / TxHash.
+                    </p>
+                    <p className="text-[10px] text-slate-400 leading-relaxed">
+                      A valid hash is usually a long string of letters and numbers (about 64 characters).
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <input
                 type="text"
                 value={customTxHash}
