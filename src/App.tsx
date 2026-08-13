@@ -12,6 +12,8 @@ import { SecurityCenter } from './components/SecurityCenter';
 import { SendReceiveModal } from './components/SendReceiveModal';
 import { AdminDashboard } from './components/AdminDashboard';
 import { AuthScreen } from './components/AuthScreen';
+import { LandingPage } from './components/LandingPage';
+import { LegalPage } from './components/LegalPage';
 import { ProfileSection } from './components/ProfileSection';
 import { DashboardSkeleton } from './components/DashboardSkeleton';
 import { CreditCard, ShieldCheck, Zap, ArrowUpRight, Lock, Sparkles, BellRing, Info, AlertTriangle } from 'lucide-react';
@@ -35,8 +37,11 @@ const DEFAULT_CARD: CryptoCard = {
   balanceUsd: 0,
 };
 
+type GuestView = 'landing' | 'auth' | 'privacy' | 'terms';
+
 export default function App() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [guestView, setGuestView] = useState<GuestView>('landing');
   const [activeTab, setActiveTab] = useState<string>('overview');
 
   // Initial states set to null / empty arrays (no mockData pre-filling)
@@ -208,6 +213,7 @@ export default function App() {
     setAssets([]);
     setTransactions([]);
     setActiveTab('overview');
+    setGuestView('landing');
   };
 
   const handleFreezeUserAdmin = async (userId: string, isFrozen: boolean, reason?: string): Promise<boolean> => {
@@ -501,7 +507,43 @@ export default function App() {
   const totalHoldingsUsd = assets.reduce((acc, curr) => acc + curr.valueUsd, 0);
 
   if (!authUser) {
-    return <AuthScreen onLoginSuccess={handleAuthSuccess} />;
+    if (guestView === 'privacy') {
+      return (
+        <LegalPage
+          doc="privacy"
+          onBack={() => setGuestView('landing')}
+          onGetStarted={() => setGuestView('auth')}
+          onOpenPrivacy={() => setGuestView('privacy')}
+          onOpenTerms={() => setGuestView('terms')}
+        />
+      );
+    }
+    if (guestView === 'terms') {
+      return (
+        <LegalPage
+          doc="terms"
+          onBack={() => setGuestView('landing')}
+          onGetStarted={() => setGuestView('auth')}
+          onOpenPrivacy={() => setGuestView('privacy')}
+          onOpenTerms={() => setGuestView('terms')}
+        />
+      );
+    }
+    if (guestView === 'auth') {
+      return (
+        <AuthScreen
+          onLoginSuccess={handleAuthSuccess}
+          onBack={() => setGuestView('landing')}
+        />
+      );
+    }
+    return (
+      <LandingPage
+        onGetStarted={() => setGuestView('auth')}
+        onOpenPrivacy={() => setGuestView('privacy')}
+        onOpenTerms={() => setGuestView('terms')}
+      />
+    );
   }
 
   // Get current user account object for notices
