@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { CryptoCard, CryptoAsset, Transaction, CardTier, ConnectedUser, AdminActionLog, AuthUser, Notice, SupportTicket } from './types';
 import { Header } from './components/Header';
 import { CryptoCard3D } from './components/CryptoCard3D';
@@ -17,6 +17,7 @@ import { LegalPage } from './components/LegalPage';
 import { ProfileSection } from './components/ProfileSection';
 import { DashboardSkeleton } from './components/DashboardSkeleton';
 import { CreditCard, ShieldCheck, Zap, ArrowUpRight, Lock, Sparkles, BellRing, Info, AlertTriangle } from 'lucide-react';
+import { clearSession, loadSession, saveSession, touchSession } from './utils/session';
 
 const DEFAULT_CARD: CryptoCard = {
   id: 'card-default',
@@ -43,6 +44,9 @@ export default function App() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [guestView, setGuestView] = useState<GuestView>('landing');
   const [activeTab, setActiveTab] = useState<string>('overview');
+  const [sessionReady, setSessionReady] = useState(false);
+  const authUserRef = useRef<AuthUser | null>(null);
+  const activeTabRef = useRef<string>('overview');
 
   // Initial states set to null / empty arrays (no mockData pre-filling)
   const [card, setCard] = useState<CryptoCard | null>(null);
@@ -64,19 +68,77 @@ export default function App() {
   const [sendReceiveMode, setSendReceiveMode] = useState<'send' | 'receive'>('send');
   const [isRefreshingPrices, setIsRefreshingPrices] = useState<boolean>(false);
 
+  useEffect(() => {
+    authUserRef.current = authUser;
+  }, [authUser]);
+
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
+
   // Initial load from Express API
   useEffect(() => {
     fetchCardDetails();
     fetchAdminUsersAndLogs();
   }, []);
 
+  // Restore persisted login (same browser) until explicit Log out
+  useEffect(() => {
+    const saved = loadSession();
+    if (saved?.user) {
+      void handleAuthSuccess(saved.user, undefined, { restoreTab: saved.activeTab });
+    }
+    setSessionReady(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- restore once on mount
+  }, []);
+
+  // Refresh session TTL while the user is active
+  useEffect(() => {
+    if (!authUser) return;
+
+    const refresh = () => {
+      if (authUserRef.current) {
+        touchSession({ user: authUserRef.current, activeTab: activeTabRef.current });
+      }
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', onVisibility);
+    const interval = window.setInterval(refresh, 5 * 60 * 1000);
+
+    return () => {
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.clearInterval(interval);
+    };
+  }, [authUser]);
+
   // Enforce role-based access to admin tab
   useEffect(() => {
     if (authUser && authUser.role !== 'admin' && activeTab === 'admin') {
       setActiveTab('overview');
+      saveSession(authUser, 'overview');
     }
   }, [authUser, activeTab]);
 
+  const resolveTabForUser = (user: AuthUser, preferred?: string): string => {
+    if (user.role === 'admin') {
+      return preferred || 'admin';
+    }
+    if (!preferred || preferred === 'admin') return 'overview';
+    return preferred;
+  };
+
+  const handleSetActiveTab = (tab: string) => {
+    setActiveTab(tab);
+    if (authUserRef.current) {
+      saveSession(authUserRef.current, tab);
+    }
+  };
   const fetchCardDetails = async (uid?: string) => {
     try {
       const targetId = uid || authUser?.id;
@@ -168,14 +230,16 @@ export default function App() {
     }
   };
 
-  const handleAuthSuccess = async (user: AuthUser, userAccount?: ConnectedUser) => {
+  const handleAuthSuccess = async (
+    user: AuthUser,
+    userAccount?: ConnectedUser,
+    opts?: { restoreTab?: string }
+  ) => {
     setIsLoadingData(true);
     setAuthUser(user);
-    if (user.role === 'admin') {
-      setActiveTab('admin');
-    } else {
-      setActiveTab('overview');
-    }
+    const nextTab = resolveTabForUser(user, opts?.restoreTab);
+    setActiveTab(nextTab);
+    saveSession(user, nextTab);
 
     if (user.address) {
       setWalletAddress(user.address);
@@ -208,6 +272,7 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    clearSession();
     setAuthUser(null);
     setCard(null);
     setAssets([]);
@@ -308,7 +373,12 @@ export default function App() {
       });
       const resData = await res.json();
       if (res.ok && resData.user) {
-        setAuthUser((prev) => (prev ? { ...prev, name: resData.user.name, email: resData.user.email } : null));
+        setAuthUser((prev) => {
+          if (!prev) return null;
+          const next = { ...prev, name: resData.user.name, email: resData.user.email };
+          saveSession(next, activeTabRef.current);
+          return next;
+        });
         if (card) {
           setCard({ ...card, cardHolder: resData.user.name.toUpperCase() });
         }
@@ -328,7 +398,12 @@ export default function App() {
         body: JSON.stringify({ userId: authUser?.id, newPin, isReset: true }),
       });
       if (res.ok) {
-        setAuthUser((prev) => (prev ? { ...prev, securityPin: newPin } : null));
+        setAuthUser((prev) => {
+          if (!prev) return null;
+          const next = { ...prev, securityPin: newPin };
+          saveSession(next, activeTabRef.current);
+          return next;
+        });
         return true;
       }
       return false;
@@ -506,6 +581,14 @@ export default function App() {
   const activeCard = card || DEFAULT_CARD;
   const totalHoldingsUsd = assets.reduce((acc, curr) => acc + curr.valueUsd, 0);
 
+  if (!sessionReady) {
+    return (
+      <div className="min-h-screen bg-[#0b0e11] text-[#eaecef] font-sans">
+        <DashboardSkeleton />
+      </div>
+    );
+  }
+
   if (!authUser) {
     if (guestView === 'privacy') {
       return (
@@ -559,7 +642,7 @@ export default function App() {
         authUser={authUser}
         onLogout={handleLogout}
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={handleSetActiveTab}
         onOpenTopup={() => setShowTopupModal(true)}
         onOpenTiers={() => setShowTiersModal(true)}
         onOpenSendReceive={(m = 'send') => {

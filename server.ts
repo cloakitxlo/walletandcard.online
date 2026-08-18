@@ -279,10 +279,10 @@ async function startServer() {
     const { userId, assetId, amount, txHash, network, vaultAddress } = req.body;
     const recvAmt = Number(amount);
 
-    if (isNaN(recvAmt) || recvAmt < 50) {
+    if (isNaN(recvAmt) || recvAmt < 11) {
       res.status(400).json({
         success: false,
-        error: 'Deposit Failed: Minimum deposit amount is 50 USDT.',
+        error: 'Deposit Failed: Minimum deposit amount is 11 USDT.',
       });
       return;
     }
