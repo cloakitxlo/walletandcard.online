@@ -64,7 +64,7 @@ export const WalletOverview: React.FC<WalletOverviewProps> = ({
                   Activation Required
                 </p>
                 <h3 className="text-sm sm:text-base font-extrabold text-amber-50">
-                  After deposit, card is activated
+                  Deposit 11 USDT to activate your card
                 </h3>
                 <p className="text-xs text-amber-100/80 mt-1">
                   Please deposit first and enjoy your card.
