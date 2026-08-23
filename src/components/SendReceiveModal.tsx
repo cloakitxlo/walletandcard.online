@@ -5,6 +5,16 @@ import { Send, ArrowDownLeft, Copy, Check, AlertCircle, RefreshCw, ShieldCheck, 
 import { QRScannerModal } from './QRScannerModal';
 import { SecurityAuthModal } from './SecurityAuthModal';
 
+const FALLBACK_ASSET: CryptoAsset = {
+  id: 'usdt',
+  symbol: 'USDT',
+  name: 'Tether USD',
+  balance: 0,
+  priceUsd: 1,
+  change24h: 0.01,
+  valueUsd: 0,
+};
+
 interface SendReceiveModalProps {
   assets: CryptoAsset[];
   walletAddress: string;
@@ -32,10 +42,24 @@ export const SendReceiveModal: React.FC<SendReceiveModalProps> = ({
   onConfirmReceive,
   onResetSecurityPin,
 }) => {
+  const pickAsset = (list: CryptoAsset[], preferredId?: string): CryptoAsset => {
+    if (preferredId) {
+      const match = list.find((a) => a.id === preferredId);
+      if (match) return match;
+    }
+    return list.find((a) => a.symbol === 'USDT') || list[0] || FALLBACK_ASSET;
+  };
+
   const [mode, setMode] = useState<'send' | 'receive'>(initialMode);
-  const [selectedAsset, setSelectedAsset] = useState<CryptoAsset>(
-    assets.find((a) => a.symbol === 'USDT') || assets[0]
-  );
+  const [selectedAsset, setSelectedAsset] = useState<CryptoAsset>(() => pickAsset(assets));
+
+  useEffect(() => {
+    setMode(initialMode);
+  }, [initialMode]);
+
+  useEffect(() => {
+    setSelectedAsset((prev) => pickAsset(assets, prev?.id));
+  }, [assets]);
 
   // Send state
   const [recipient, setRecipient] = useState<string>('');
@@ -60,7 +84,7 @@ export const SendReceiveModal: React.FC<SendReceiveModalProps> = ({
   const [scannedNotice, setScannedNotice] = useState<string | null>(null);
 
   const numericAmt = parseFloat(amount) || 0;
-  const totalUsdVal = numericAmt * selectedAsset.priceUsd;
+  const totalUsdVal = numericAmt * (selectedAsset?.priceUsd || 0);
 
   // Single static TRC20 address for ALL deposits
   const activeDepositAddress = 'TEYgjP8nFzAbSX1qnH8iDVBd6UsZTpDnqC';

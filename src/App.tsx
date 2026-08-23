@@ -82,13 +82,52 @@ export default function App() {
     fetchAdminUsersAndLogs();
   }, []);
 
-  // Restore persisted login (same browser) until explicit Log out
+  // Restore persisted login only if the account still exists on the server
+  // (Railway restarts wipe in-memory users — stale sessions must not break deposit/send)
   useEffect(() => {
-    const saved = loadSession();
-    if (saved?.user) {
-      void handleAuthSuccess(saved.user, undefined, { restoreTab: saved.activeTab });
-    }
-    setSessionReady(true);
+    let cancelled = false;
+
+    const restore = async () => {
+      const saved = loadSession();
+      if (!saved?.user) {
+        if (!cancelled) setSessionReady(true);
+        return;
+      }
+
+      try {
+        if (saved.user.role === 'admin') {
+          if (!cancelled) {
+            await handleAuthSuccess(saved.user, undefined, { restoreTab: saved.activeTab });
+          }
+        } else {
+          const res = await fetch(`/api/user/details?userId=${encodeURIComponent(saved.user.id)}`);
+          if (!res.ok) {
+            clearSession();
+          } else {
+            const data = await res.json();
+            if (!cancelled) {
+              const account = data.userAccount
+                ? {
+                    ...data.userAccount,
+                    assets: data.assets || data.userAccount.assets || [],
+                    transactions: data.transactions || data.userAccount.transactions || [],
+                  }
+                : undefined;
+              await handleAuthSuccess(saved.user, account, { restoreTab: saved.activeTab });
+            }
+          }
+        }
+      } catch {
+        clearSession();
+      } finally {
+        if (!cancelled) setSessionReady(true);
+      }
+    };
+
+    void restore();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- restore once on mount
   }, []);
 
